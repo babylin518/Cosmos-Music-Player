@@ -13,7 +13,7 @@ struct SettingsView: View {
     @AppStorage(PlayerEngine.resumeOnCarPlayConnectKey) private var resumeOnCarPlayConnect = false
     @AppStorage(VolumeLevellingMode.storageKey) private var volumeLevelling: VolumeLevellingMode = .off
     @State private var showClearHistoryPrompt = false
-    @State private var siriStatus = INPreferences.siriAuthorizationStatus()
+    @State private var siriStatus: INSiriAuthorizationStatus = SigningEntitlements.siri ? INPreferences.siriAuthorizationStatus() : .denied
     @AppStorage(SupportCosmos.reminderEnabledKey) private var supportReminder = true
     @AppStorage(SupportCosmos.supporterKey) private var isSupporter = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -403,7 +403,9 @@ struct SettingsView: View {
         Form {
             Section {
                 LabeledContent(Localized.siri, value: siriStatus == .authorized ? Localized.siriAllowed : Localized.siriNotAllowed)
-                if siriStatus == .notDetermined {
+                if !SigningEntitlements.siri {
+                    EmptyView()
+                } else if siriStatus == .notDetermined {
                     Button(Localized.siriAllow) {
                         INPreferences.requestSiriAuthorization { status in
                             Task { @MainActor in siriStatus = status }

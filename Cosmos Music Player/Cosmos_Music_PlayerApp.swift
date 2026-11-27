@@ -27,8 +27,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         SiriDiag.log("APP didFinishLaunching")
-        SiriDiag.log("APP siri authorization: \(INPreferences.siriAuthorizationStatus().rawValue)")
-        requestSiriAuthorizationIfNeeded()
+        // Without the Siri entitlement (a copy re-signed with a free Apple
+        // ID) INPreferences raises an exception, which crashed every launch.
+        if SigningEntitlements.siri {
+            SiriDiag.log("APP siri authorization: \(INPreferences.siriAuthorizationStatus().rawValue)")
+            requestSiriAuthorizationIfNeeded()
+        }
         // Set up Siri vocabulary and media context
         setupSiriIntegration()
         // BGTaskScheduler only accepts handlers registered before launch

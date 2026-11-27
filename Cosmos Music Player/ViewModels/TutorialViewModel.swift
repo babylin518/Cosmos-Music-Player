@@ -72,6 +72,12 @@ class TutorialViewModel: ObservableObject {
     }
     
     func checkAppleIDStatus() {
+        // CKContainer raises an exception without the iCloud entitlement
+        // (a copy re-signed with a free Apple ID).
+        guard SigningEntitlements.iCloud else {
+            fallbackAppleIDCheck()
+            return
+        }
         // Use Apple's recommended CloudKit approach for detecting iCloud sign-in status
         CKContainer.default().accountStatus { [weak self] accountStatus, error in
             Task { @MainActor in

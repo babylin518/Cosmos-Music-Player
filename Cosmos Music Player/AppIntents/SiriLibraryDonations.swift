@@ -109,14 +109,16 @@ final class SiriLibraryDonations {
             "Titres likés", "Favoris", "Coups de cœur", "Pour vous", "Redécouvrir",
             "ma playlist", "ma liste de lecture", "mes playlists", "liste de lecture"
         ]
-        let vocabulary = INVocabulary.shared()
-        vocabulary.setVocabularyStrings(NSOrderedSet(array: playlistTerms), of: .mediaPlaylistTitle)
-        vocabulary.setVocabularyStrings(NSOrderedSet(array: Array(source.artists.prefix(500))), of: .mediaMusicArtistName)
+        if SigningEntitlements.siri {
+            let vocabulary = INVocabulary.shared()
+            vocabulary.setVocabularyStrings(NSOrderedSet(array: playlistTerms), of: .mediaPlaylistTitle)
+            vocabulary.setVocabularyStrings(NSOrderedSet(array: Array(source.artists.prefix(500))), of: .mediaMusicArtistName)
 
-        let context = INMediaUserContext()
-        context.numberOfLibraryItems = source.trackCount
-        context.subscriptionStatus = .notSubscribed
-        context.becomeCurrent()
+            let context = INMediaUserContext()
+            context.numberOfLibraryItems = source.trackCount
+            context.subscriptionStatus = .notSubscribed
+            context.becomeCurrent()
+        }
 
         if #available(iOS 26.0, *) {
             CosmosAppShortcuts.updateAppShortcutParameters()

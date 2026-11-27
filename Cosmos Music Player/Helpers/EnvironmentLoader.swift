@@ -106,14 +106,20 @@ extension EnvironmentLoader {
     // Spotify API Keys
     var spotifyClientId: String {
         guard let clientId = getValue(for: "SPOTIFY_CLIENT_ID"), !clientId.isEmpty else {
-            fatalError("❌ SPOTIFY_CLIENT_ID not found in environment variables. Please add it to your .env file.")
+            // No key: artist details from this service are unavailable.
+            // This used to stop the app.
+            print("⚠️ SPOTIFY_CLIENT_ID not set - this service is unavailable")
+            return ""
         }
         return clientId
     }
     
     var spotifyClientSecret: String {
         guard let clientSecret = getValue(for: "SPOTIFY_CLIENT_SECRET"), !clientSecret.isEmpty else {
-            fatalError("❌ SPOTIFY_CLIENT_SECRET not found in environment variables. Please add it to your .env file.")
+            // No key: artist details from this service are unavailable.
+            // This used to stop the app.
+            print("⚠️ SPOTIFY_CLIENT_SECRET not set - this service is unavailable")
+            return ""
         }
         return clientSecret
     }
@@ -121,14 +127,20 @@ extension EnvironmentLoader {
     // Discogs API Keys
     var discogsConsumerKey: String {
         guard let consumerKey = getValue(for: "DISCOGS_CONSUMER_KEY"), !consumerKey.isEmpty else {
-            fatalError("❌ DISCOGS_CONSUMER_KEY not found in environment variables. Please add it to your .env file.")
+            // No key: artist details from this service are unavailable.
+            // This used to stop the app.
+            print("⚠️ DISCOGS_CONSUMER_KEY not set - this service is unavailable")
+            return ""
         }
         return consumerKey
     }
     
     var discogsConsumerSecret: String {
         guard let consumerSecret = getValue(for: "DISCOGS_CONSUMER_SECRET"), !consumerSecret.isEmpty else {
-            fatalError("❌ DISCOGS_CONSUMER_SECRET not found in environment variables. Please add it to your .env file.")
+            // No key: artist details from this service are unavailable.
+            // This used to stop the app.
+            print("⚠️ DISCOGS_CONSUMER_SECRET not set - this service is unavailable")
+            return ""
         }
         return consumerSecret
     }
