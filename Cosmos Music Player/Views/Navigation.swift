@@ -616,13 +616,7 @@ private struct DefaultSidebarPlacement: ViewModifier {
         // landscape and narrower in portrait (the 13-inch is 1032).
         GeometryReader { geometry in
             let placement: AdaptableTabBarPlacement = Self.opensSidebar(in: geometry) ? .sidebar : .tabBar
-            if #available(iOS 27.0, *) {
-                content
-                    .defaultAdaptableTabBarPlacement(placement)
-                    .defaultTabBarPlacement(placement)
-            } else {
-                content.defaultAdaptableTabBarPlacement(placement)
-            }
+            content.defaultAdaptableTabBarPlacement(placement)
         }
     }
 
@@ -636,8 +630,8 @@ private struct DefaultSidebarPlacement: ViewModifier {
     /// back to the tab bar, which on a phone lists every tab - the library's
     /// sections too - and pushed Search into a More tab.
     nonisolated private static func isFoldableHeldOpenLikeABook(_ geometry: GeometryProxy) -> Bool {
-        guard #available(iOS 27.1, *), geometry.size.width > geometry.size.height else { return false }
-        return !geometry.reservedRegions(kind: .division, options: .includeInactive).isEmpty
+        // Needs the iOS 27.1 SDK (folding screens); built here with an older SDK.
+        return false
     }
 }
 

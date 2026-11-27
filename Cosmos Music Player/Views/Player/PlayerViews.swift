@@ -157,9 +157,7 @@ struct PlayerView: View {
                     .ignoresSafeArea()
 
                 if let track = playerEngine.currentTrack {
-                    if #available(iOS 27.1, *), isFolded(geometry), geometry.size.width >= 500 {
-                        foldableLayout(track: track)
-                    } else if wide {
+                    if wide {
                         wideLayout(track: track, size: geometry.size)
                     } else {
                         compactLayout(track: track, size: geometry.size)
@@ -286,60 +284,6 @@ struct PlayerView: View {
         .frame(maxWidth: controlsWidth)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: compactPanel)
-    }
-
-    /// iPhone Duo's inner screen while it is actually folded - propped up
-    /// or held like a book: the fold's division region is active. Open flat,
-    /// the split wasted half the screen, so the usual layouts take over.
-    @available(iOS 27.1, *)
-    private func isFolded(_ geometry: GeometryProxy) -> Bool {
-        geometry.reservedRegions(kind: .division).contains { $0.isActive }
-    }
-
-    /// iPhone Duo's inner display. The player is two halves the system
-    /// arranges around the fold: the stage - the cover, or lyrics and Up
-    /// Next - and the deck - title, progress and controls. Propped up like a
-    /// laptop, the stage sits on the top half to be watched from a distance
-    /// and the controls on the bottom half, the steady part to touch; held
-    /// like a book or open flat, they sit side by side. Nothing straddles
-    /// the fold.
-    @available(iOS 27.1, *)
-    private func foldableLayout(track: Track) -> some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, Design.Spacing.l)
-
-            ArrangementView {
-                FoldStage { size in
-                    VStack(spacing: Design.Spacing.s) {
-                        if let panel = compactPanel {
-                            panelContent(panel)
-                                .frame(maxHeight: .infinity)
-                                // Propped up, the stage runs the full width
-                                // of the screen; the lyrics menu sat on its
-                                // very edge.
-                                .padding(.horizontal, Design.Spacing.l)
-                        } else {
-                            Spacer(minLength: 0)
-                            artworkSection(size: max(160, min(size.width - 64, size.height - 48)))
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: compactPanel)
-                }
-            } secondary: {
-                FoldDeck {
-                    titleRow(track: track)
-                        .padding(.bottom, Design.Spacing.l)
-                    controls
-                    bottomRow
-                        .padding(.top, Design.Spacing.m)
-                        .padding(.bottom, Design.Spacing.s)
-                }
-                .padding(.horizontal, Design.Spacing.xxl)
-            }
-            .arrangementViewStyle(.split)
-        }
     }
 
     private func wideLayout(track: Track, size: CGSize) -> some View {
@@ -1191,38 +1135,6 @@ final class SleepTimer: ObservableObject {
 /// Two colours taken from the artwork - its top half and its bottom half -
 /// darkened enough that white text on them always stays readable (at least
 /// 4.5:1 against the lighter one).
-/// The stage half of the folding player: hands its size to the content, so
-/// the cover fills whichever half it gets.
-private struct FoldStage<Content: View>: View {
-    @ViewBuilder let content: (CGSize) -> Content
-
-    var body: some View {
-        GeometryReader { geometry in
-            content(geometry.size)
-                .frame(width: geometry.size.width, height: geometry.size.height)
-        }
-    }
-}
-
-/// The controls half of the folding player. Stacked under the stage (the
-/// laptop pose) it keeps the controls at the top of the half, close to the
-/// fold and the thumbs; beside the stage it centres them vertically.
-@available(iOS 27.1, *)
-private struct FoldDeck<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-    @Environment(\.splitArrangementAxis) private var axis
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if axis != .vertical { Spacer(minLength: 0) }
-            content()
-                .frame(maxWidth: 560)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
 struct PlayerPalette: Equatable {
     var top: Color
     var bottom: Color

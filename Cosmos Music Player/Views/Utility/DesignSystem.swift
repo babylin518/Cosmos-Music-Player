@@ -555,54 +555,21 @@ private struct FoldableDisplayDetector: ViewModifier {
             .environment(\.isFoldableDisplay, isFoldable)
             .environment(\.foldRunsDown, foldRunsDown)
             .onGeometryChange(for: Bool.self) { proxy in
-                if #available(iOS 27.1, *) {
-                    return proxy.reservedRegions(kind: .division, options: .includeInactive)
-                        .contains { $0.frame.height > $0.frame.width }
-                }
                 return false
             } action: { foldRunsDown = $0 }
             .environment(\.trailingOcclusion, trailingOcclusion)
             .onGeometryChange(for: Bool.self) { proxy in
-                if #available(iOS 27.1, *) {
-                    return !proxy.reservedRegions(kind: .division, options: .includeInactive).isEmpty
-                }
                 return false
             } action: { isFoldable = $0 }
             .onGeometryChange(for: CGFloat.self) { proxy in
-                if #available(iOS 27.1, *) {
-                    return Self.trailingOcclusion(in: proxy)
-                }
                 return 0
             } action: { trailingOcclusion = $0 }
             #if DEBUG
             .onGeometryChange(for: String.self) { proxy in
-                var lines = ["size \(proxy.size) safe \(proxy.safeAreaInsets)"]
-                if #available(iOS 27.1, *) {
-                    for kind in [ReservedRegion.Kind.occlusion, .division] {
-                        for region in proxy.reservedRegions(kind: kind, options: .includeInactive, layoutDirectionBehavior: .fixed) {
-                            lines.append("\(kind == .occlusion ? "occlusion" : "division") frame \(region.frame) margins \(region.margins) active \(region.isActive)")
-                        }
-                    }
-                }
+                let lines = ["size \(proxy.size) safe \(proxy.safeAreaInsets)"]
                 return lines.joined(separator: " | ")
             } action: { print("🧭 [Layout] \($0)") }
             #endif
-    }
-
-    /// How far a camera in the top trailing corner reaches in from the edge -
-    /// iPhone Duo's cover screen, where the camera and the status items stack
-    /// down the right side and sat on top of the settings button. A camera
-    /// centred at the top (the Dynamic Island) is not counted: the safe area
-    /// already handles that.
-    @available(iOS 27.1, *)
-    nonisolated private static func trailingOcclusion(in proxy: GeometryProxy) -> CGFloat {
-        let width = proxy.size.width
-        let regions = proxy.reservedRegions(kind: .occlusion, layoutDirectionBehavior: .fixed)
-        var inset: CGFloat = 0
-        for region in regions where region.frame.minX > width * 0.7 && region.frame.minY < proxy.size.height * 0.3 {
-            inset = max(inset, width - region.frame.minX + region.margins.leading)
-        }
-        return min(inset, width * 0.2)
     }
 }
 
@@ -669,9 +636,7 @@ struct DetailPage<Header: View, Rows: View>: View {
     var body: some View {
         if horizontalSizeClass == .regular {
             GeometryReader { geometry in
-                if #available(iOS 27.1, *), isFoldable, Self.foldDividesPage(geometry) {
-                    foldingSplit
-                } else if geometry.size.width - Self.headerColumnWidth(for: geometry.size.width) >= minimumRowsWidth {
+                if geometry.size.width - Self.headerColumnWidth(for: geometry.size.width) >= minimumRowsWidth {
                     columns(width: geometry.size.width)
                 } else {
                     // Too narrow for the header column beside the songs -
@@ -702,39 +667,6 @@ struct DetailPage<Header: View, Rows: View>: View {
             }
             rows()
         }
-    }
-
-    /// The fold runs down through the page with room for a column on each
-    /// side. Not the same as the page being wider than tall: with the sidebar
-    /// open the page starts 280 points in, the fold sits 175 points from its
-    /// edge, and splitting there squeezed the songs into a narrow strip.
-    @available(iOS 27.1, *)
-    private static func foldDividesPage(_ geometry: GeometryProxy) -> Bool {
-        geometry.reservedRegions(kind: .division, options: .includeInactive).contains { fold in
-            fold.frame.height > fold.frame.width
-                && fold.frame.minX >= 300
-                && geometry.size.width - fold.frame.maxX >= 300
-        }
-    }
-
-    /// iPhone Duo held open like a book: the system splits the page at the
-    /// fold - cover and buttons on one half, songs on the other.
-    @available(iOS 27.1, *)
-    private var foldingSplit: some View {
-        ArrangementView {
-            ScrollView {
-                header()
-                    .environment(\.isInDetailPanel, true)
-                    .padding(.horizontal, Design.Spacing.xl)
-                    .padding(.vertical, Design.Spacing.l)
-            }
-            .scrollIndicators(.hidden)
-        } secondary: {
-            list {
-                rows()
-            }
-        }
-        .arrangementViewStyle(.split.axes(.horizontal))
     }
 
     private static func headerColumnWidth(for width: CGFloat) -> CGFloat {
