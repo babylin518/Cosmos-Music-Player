@@ -1,0 +1,90 @@
+# 放到 Cosmos-Music-Player 仓库（你自己的 fork）根目录。
+# 两个 workflow 二选一：
+#   ios-unsigned  不需要任何苹果账号配置，产出未签名 IPA，用 Sideloadly / AltStore 自签安装
+#   ios-adhoc     需要付费开发者账号，产出已签名 IPA，可直接装到已登记 UDID 的手机
+
+definitions:
+  scripts:
+    - &remove_carplay
+      name: 去掉 CarPlay 权限（需向苹果单独申请，没有就必须删）
+      script: |
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.carplay-audio" \
+          "Cosmos Music Player/Cosmos Music Player.entitlements" || true
+    - &resolve_packages
+      name: 拉取 Swift Package 依赖
+      script: |
+        xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT"
+
+workflows:
+  ios-unsigned:
+    name: Cosmos 未签名 IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest # 工程用了 iOS 27 的 API，需要 Xcode 27
+      vars:
+        XCODE_PROJECT: "Cosmos Music Player.xcodeproj"
+        XCODE_SCHEME: "Cosmos Music Player"
+    scripts:
+      - *remove_carplay
+      - *resolve_packages
+      - name: 编译（不签名）
+        script: |
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+      - name: 打成 IPA
+        script: |
+          rm -rf Payload && mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -qry Cosmos-unsigned.ipa Payload
+    artifacts:
+      - Cosmos-unsigned.ipa
+
+  ios-adhoc:
+    name: Cosmos 已签名 IPA (Ad Hoc)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic # Codemagic 里 App Store Connect API key 的名字，按你的改
+    environment:
+      xcode: latest
+      groups:
+        - signing # 里面放 CERTIFICATE_PRIVATE_KEY（一个 RSA 私钥，用来生成发布证书）
+      vars:
+        XCODE_PROJECT: "Cosmos Music Player.xcodeproj"
+        XCODE_SCHEME: "Cosmos Music Player"
+        NEW_BUNDLE_ID: "com.example.cosmos" # 改成你自己的
+    scripts:
+      - *remove_carplay
+      - name: 把作者的 Bundle ID / App Group / iCloud 容器换成自己的
+        script: |
+          # group.dev.clq.Cosmos-Music-Player 和 iCloud.dev.clq.Cosmos-Music-Player
+          # 都以同一串为后缀，一次替换全部覆盖（代码、plist、entitlements、工程文件）
+          grep -rlI --exclude-dir=.git --exclude-dir=Exports "dev.clq.Cosmos-Music-Player" . \
+            | while IFS= read -r f; do
+                sed -i '' "s/dev\.clq\.Cosmos-Music-Player/$NEW_BUNDLE_ID/g" "$f"
+              done
+      - *resolve_packages
+      - name: 获取证书和描述文件
+        script: |
+          keychain initialize
+          for id in "$NEW_BUNDLE_ID" \
+                    "$NEW_BUNDLE_ID.PlayerWidget" \
+                    "$NEW_BUNDLE_ID.Share" \
+                    "$NEW_BUNDLE_ID.SiriIntentsExtension"; do
+            app-store-connect fetch-signing-files "$id" --type IOS_APP_ADHOC --create
+          done
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: 打包 IPA
+        script: |
+          xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
