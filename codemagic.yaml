@@ -30,14 +30,25 @@ workflows:
       - *resolve_packages
       - name: 编译（不签名）
         script: |
-          xcodebuild build \
+          echo "===== 环境 ====="
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
+          if ! xcodebuild build \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            > xcodebuild.log 2>&1; then
+            echo "===== 错误摘要（去重后前 80 条）====="
+            grep -E "error:|fatal error|Undefined symbol|No such module" xcodebuild.log | sort -u | head -80
+            echo "===== 日志末尾 ====="
+            tail -40 xcodebuild.log
+            exit 1
+          fi
+          tail -5 xcodebuild.log
       - name: 打成 IPA
         script: |
           rm -rf Payload && mkdir Payload
